@@ -1,5 +1,6 @@
 import React from "react";
 import "setimmediate";
+import { validate as jsonValidate } from "jsonschema";
 
 const widgetMap = {
   boolean: {
@@ -152,7 +153,7 @@ export function getDefaultFormState(_schema, formData, definitions = {}) {
   if (!isObject(_schema)) {
     throw new Error("Invalid schema: " + _schema);
   }
-  const schema = retrieveSchema(_schema, definitions);
+  const schema = retrieveSchema(_schema, definitions, formData);
   const defaults = computeDefaults(schema, _schema.default, definitions);
   if (typeof formData === "undefined") {
     // No form data? Use schema defaults.
@@ -379,17 +380,82 @@ function findSchemaDefinition($ref, definitions = {}) {
   throw new Error(`Could not find a definition for ${$ref}.`);
 }
 
-export function retrieveSchema(schema, definitions = {}) {
-  // No $ref attribute found, returning the original schema.
-  if (!schema.hasOwnProperty("$ref")) {
+export function retrieveSchema(schema, definitions = {}, formData = {}) {
+  if (schema.hasOwnProperty("$ref")) {
+    // Retrieve the referenced schema definition.
+    const $refSchema = findSchemaDefinition(schema.$ref, definitions);
+    // Drop the $ref property of the source schema.
+    const { $ref, ...localSchema } = schema;
+    // Update referenced schema definition with local schema properties.
+    return retrieveSchema(
+      { ...$refSchema, ...localSchema },
+      definitions,
+      formData
+    );
+  } else if (schema.hasOwnProperty("dependencies")) {
+    // Drop the dependencies from the source schema.
+    let { dependencies, ...localSchema } = schema;
+    // Process dependencies updating the local schema properties as appropriate.
+    for (const key of Object.keys(dependencies)) {
+      // Skip this dependency if its trigger property is not present.
+      if (!formData[key]) {
+        // fixme: a falsey check may not be appropriate here, I'm not sure
+        continue;
+      }
+      const value = dependencies[key];
+      if (Array.isArray(value)) {
+        for (const property of value) {
+          if (!Array.isArray(localSchema.required)) {
+            localSchema.required = [];
+          }
+          if (localSchema.required.includes(property)) {
+            continue;
+          }
+          localSchema.required = localSchema.required.concat(property);
+        }
+      } else if (isObject(value)) {
+        localSchema = retrieveSchema(
+          mergeObjects(
+            localSchema,
+            retrieveSchema(value, definitions, formData),
+            true
+          )
+        );
+        if (Array.isArray(value.oneOf)) {
+          for (const subschema of value.oneOf) {
+            if (!subschema.properties) {
+              continue;
+            }
+            const {
+              [key]: conditionProperty,
+              ...dependentProperties
+            } = subschema.properties;
+            if (conditionProperty) {
+              const conditionSchema = {
+                type: "object",
+                properties: {
+                  [key]: conditionProperty,
+                },
+              };
+              const { errors } = jsonValidate(formData, conditionSchema);
+              if (errors.length === 0) {
+                const dependentSchema = { ...subschema };
+                dependentSchema.properties = dependentProperties;
+                localSchema = mergeObjects(
+                  localSchema,
+                  retrieveSchema(dependentSchema, definitions, formData)
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+    return retrieveSchema(localSchema, definitions, formData);
+  } else {
+    // No $ref or dependencies attribute found, returning the original schema.
     return schema;
   }
-  // Retrieve the referenced schema definition.
-  const $refSchema = findSchemaDefinition(schema.$ref, definitions);
-  // Drop the $ref property of the source schema.
-  const { $ref, ...localSchema } = schema;
-  // Update referenced schema definition with local schema properties.
-  return { ...$refSchema, ...localSchema };
 }
 
 function isArguments(object) {
@@ -478,16 +544,16 @@ export function shouldRender(comp, nextProps, nextState) {
   return !deepEquals(props, nextProps) || !deepEquals(state, nextState);
 }
 
-export function toIdSchema(schema, id, definitions) {
+export function toIdSchema(schema, id, definitions, formData = {}) {
   const idSchema = {
     $id: id || "root",
   };
   if ("$ref" in schema) {
-    const _schema = retrieveSchema(schema, definitions);
-    return toIdSchema(_schema, id, definitions);
+    const _schema = retrieveSchema(schema, definitions, formData);
+    return toIdSchema(_schema, id, definitions, formData);
   }
   if ("items" in schema && !schema.items.$ref) {
-    return toIdSchema(schema.items, id, definitions);
+    return toIdSchema(schema.items, id, definitions, formData);
   }
   if (schema.type !== "object") {
     return idSchema;
@@ -495,7 +561,7 @@ export function toIdSchema(schema, id, definitions) {
   for (const name in schema.properties || {}) {
     const field = schema.properties[name];
     const fieldId = idSchema.$id + "_" + name;
-    idSchema[name] = toIdSchema(field, fieldId, definitions);
+    idSchema[name] = toIdSchema(field, fieldId, definitions, formData[name]);
   }
   return idSchema;
 }

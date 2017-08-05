@@ -146,6 +146,7 @@ DefaultTemplate.defaultProps = {
 function SchemaFieldRender(props) {
   const {
     uiSchema,
+    formData,
     errorSchema,
     idSchema,
     name,
@@ -158,7 +159,7 @@ function SchemaFieldRender(props) {
     formContext,
     FieldTemplate = DefaultTemplate,
   } = registry;
-  const schema = retrieveSchema(props.schema, definitions);
+  const schema = retrieveSchema(props.schema, definitions, formData);
   const FieldComponent = getFieldComponent(schema, uiSchema, fields);
   const { DescriptionField } = fields;
   const disabled = Boolean(props.disabled || uiSchema["ui:disabled"]);

@@ -14,6 +14,8 @@ import files from "./files";
 import single from "./single";
 import customArray from "./customArray";
 import alternatives from "./alternatives";
+import propertyDependencies from "./propertyDependencies";
+import schemaDependencies from "./schemaDependencies";
 
 export const samples = {
   Simple: simple,
@@ -32,4 +34,6 @@ export const samples = {
   Single: single,
   "Custom Array": customArray,
   Alternatives: alternatives,
+  "Property dependencies": propertyDependencies,
+  "Schema dependencies": schemaDependencies,
 };

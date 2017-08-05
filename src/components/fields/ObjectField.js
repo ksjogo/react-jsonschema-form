@@ -47,7 +47,7 @@ class ObjectField extends Component {
     } = this.props;
     const { definitions, fields, formContext } = registry;
     const { SchemaField, TitleField, DescriptionField } = fields;
-    const schema = retrieveSchema(this.props.schema, definitions);
+    const schema = retrieveSchema(this.props.schema, definitions, formData);
     const title = schema.title === undefined ? name : schema.title;
     let orderedProperties;
     try {

@@ -496,6 +496,139 @@ describe("utils", () => {
         title: "foo",
       });
     });
+
+    describe("property dependencies", () => {
+      describe("false condition", () => {
+        it("should not add required properties", () => {
+          const schema = {
+            type: "object",
+            properties: {
+              a: { type: "string" },
+              b: { type: "integer" },
+            },
+            required: ["a"],
+            dependencies: {
+              a: ["b"],
+            },
+          };
+          const definitions = {};
+          const formData = {};
+          expect(retrieveSchema(schema, definitions, formData)).eql({
+            type: "object",
+            properties: {
+              a: { type: "string" },
+              b: { type: "integer" },
+            },
+            required: ["a"],
+          });
+        });
+      });
+      describe("true condition", () => {
+        describe("when required is not defined", () => {
+          it("should define required properties", () => {
+            const schema = {
+              type: "object",
+              properties: {
+                a: { type: "string" },
+                b: { type: "integer" },
+              },
+              dependencies: {
+                a: ["b"],
+              },
+            };
+            const definitions = {};
+            const formData = { a: "1" };
+            expect(retrieveSchema(schema, definitions, formData)).eql({
+              type: "object",
+              properties: {
+                a: { type: "string" },
+                b: { type: "integer" },
+              },
+              required: ["b"],
+            });
+          });
+        });
+        describe("when required is defined", () => {
+          it("should concat required properties", () => {
+            const schema = {
+              type: "object",
+              properties: {
+                a: { type: "string" },
+                b: { type: "integer" },
+              },
+              required: ["a"],
+              dependencies: {
+                a: ["b"],
+              },
+            };
+            const definitions = {};
+            const formData = { a: "1" };
+            expect(retrieveSchema(schema, definitions, formData)).eql({
+              type: "object",
+              properties: {
+                a: { type: "string" },
+                b: { type: "integer" },
+              },
+              required: ["a", "b"],
+            });
+          });
+        });
+      });
+    });
+
+    describe("schema dependencies", () => {
+      describe("false condition", () => {
+        it("should not modify schema", () => {
+          const schema = {
+            type: "object",
+            properties: {
+              a: { type: "string" },
+            },
+            dependencies: {
+              a: {
+                properties: {
+                  b: { type: "integer" },
+                },
+              },
+            },
+          };
+          const definitions = {};
+          const formData = {};
+          expect(retrieveSchema(schema, definitions, formData)).eql({
+            type: "object",
+            properties: {
+              a: { type: "string" },
+            },
+          });
+        });
+      });
+      describe("true condition", () => {
+        it("should add additional properties in object", () => {
+          const schema = {
+            type: "object",
+            properties: {
+              a: { type: "string" },
+            },
+            dependencies: {
+              a: {
+                properties: {
+                  b: { type: "integer" },
+                },
+              },
+            },
+          };
+          const definitions = {};
+          const formData = { a: "1" };
+          expect(retrieveSchema(schema, definitions, formData)).eql({
+            type: "object",
+            properties: {
+              a: { type: "string" },
+              b: { type: "integer" },
+            },
+          });
+        });
+      });
+    });
   });
 
   describe("shouldRender", () => {
