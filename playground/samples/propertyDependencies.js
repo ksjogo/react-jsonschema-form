@@ -1,3 +1,5 @@
+import React from "react";
+
 module.exports = {
   schema: {
     title: "Property dependencies",
@@ -8,8 +10,13 @@ module.exports = {
         title: "Unidirectional",
         src:
           "https://spacetelescope.github.io/understanding-json-schema/reference/object.html#dependencies",
-        description:
-          "In the following example, whenever a `credit_card` property is provided, a `billing_address` property must also be present.",
+        description: (
+          <p>
+            In the following example, whenever a <code>credit_card</code>{" "}
+            property is provided, a <code>billing_address</code> property must
+            also be present.
+          </p>
+        ),
         type: "object",
         properties: {
           name: {
@@ -56,8 +63,12 @@ module.exports = {
   uiSchema: {
     unidirectional: {
       credit_card: {
-        "ui:help":
-          "If you enter anything here then `billing_address` will become required.",
+        "ui:help": (
+          <p>
+            If you enter anything here then <code>billing_address</code> will
+            become required.
+          </p>
+        ),
       },
       billing_address: {
         "ui:help":
@@ -66,12 +77,20 @@ module.exports = {
     },
     bidirectional: {
       credit_card: {
-        "ui:help":
-          "If you enter anything here then `billing_address` will become required.",
+        "ui:help": (
+          <p>
+            "If you enter anything here then <code>billing_address</code> will
+            become required.
+          </p>
+        ),
       },
       billing_address: {
-        "ui:help":
-          "If you enter anything here then `credit_card` will become required.",
+        "ui:help": (
+          <p>
+            If you enter anything here then <code>credit_card</code> will become
+            required.
+          </p>
+        ),
       },
     },
   },
