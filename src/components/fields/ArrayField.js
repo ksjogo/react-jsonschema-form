@@ -312,18 +312,14 @@ class ArrayField extends Component {
     const arrayProps = {
       canAdd: this.canAddItem(formData),
       items: formData.map((item, index) => {
-        const itemSchema = retrieveSchema(
-          schema.items,
-          definitions,
-          formData[index]
-        );
+        const itemSchema = retrieveSchema(schema.items, definitions, item);
         const itemErrorSchema = errorSchema ? errorSchema[index] : undefined;
         const itemIdPrefix = idSchema.$id + "_" + index;
         const itemIdSchema = toIdSchema(
           itemSchema,
           itemIdPrefix,
           definitions,
-          formData[index]
+          item
         );
         return this.renderArrayFieldItem({
           index,
@@ -332,7 +328,7 @@ class ArrayField extends Component {
           itemSchema: itemSchema,
           itemIdSchema,
           itemErrorSchema,
-          itemData: formData[index],
+          itemData: item,
           itemUiSchema: uiSchema.items,
           autofocus: autofocus && index === 0,
           onBlur,
@@ -472,14 +468,14 @@ class ArrayField extends Component {
       items: items.map((item, index) => {
         const additional = index >= itemSchemas.length;
         const itemSchema = additional
-          ? retrieveSchema(schema.additionalItems, definitions, formData[index])
+          ? retrieveSchema(schema.additionalItems, definitions, item)
           : itemSchemas[index];
         const itemIdPrefix = idSchema.$id + "_" + index;
         const itemIdSchema = toIdSchema(
           itemSchema,
           itemIdPrefix,
           definitions,
-          formData[index]
+          item
         );
         const itemUiSchema = additional
           ? uiSchema.additionalItems || {}
