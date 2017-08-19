@@ -407,8 +407,7 @@ function resolveDependencies(schema, definitions, formData) {
   // Process dependencies updating the local schema properties as appropriate.
   for (const key of Object.keys(dependencies)) {
     // Skip this dependency if its trigger property is not present.
-    if (!formData[key]) {
-      // fixme: a falsey check may not be appropriate here, I'm not sure
+    if (formData[key] === undefined) {
       continue;
     }
     const value = dependencies[key];
