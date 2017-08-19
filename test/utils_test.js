@@ -523,6 +523,7 @@ describe("utils", () => {
           });
         });
       });
+
       describe("true condition", () => {
         describe("when required is not defined", () => {
           it("should define required properties", () => {
@@ -548,6 +549,7 @@ describe("utils", () => {
             });
           });
         });
+
         describe("when required is defined", () => {
           it("should concat required properties", () => {
             const schema = {
@@ -577,54 +579,170 @@ describe("utils", () => {
     });
 
     describe("schema dependencies", () => {
-      describe("false condition", () => {
-        it("should not modify schema", () => {
-          const schema = {
-            type: "object",
-            properties: {
-              a: { type: "string" },
-            },
-            dependencies: {
-              a: {
-                properties: {
-                  b: { type: "integer" },
+      describe("conditional", () => {
+        describe("false condition", () => {
+          it("should not modify properties", () => {
+            const schema = {
+              type: "object",
+              properties: {
+                a: { type: "string" },
+              },
+              dependencies: {
+                a: {
+                  properties: {
+                    b: { type: "integer" },
+                  },
                 },
               },
-            },
-          };
-          const definitions = {};
-          const formData = {};
-          expect(retrieveSchema(schema, definitions, formData)).eql({
-            type: "object",
-            properties: {
-              a: { type: "string" },
-            },
+            };
+            const definitions = {};
+            const formData = {};
+            expect(retrieveSchema(schema, definitions, formData)).eql({
+              type: "object",
+              properties: {
+                a: { type: "string" },
+              },
+            });
+          });
+        });
+
+        describe("true condition", () => {
+          it("should add properties", () => {
+            const schema = {
+              type: "object",
+              properties: {
+                a: { type: "string" },
+              },
+              dependencies: {
+                a: {
+                  properties: {
+                    b: { type: "integer" },
+                  },
+                },
+              },
+            };
+            const definitions = {};
+            const formData = { a: "1" };
+            expect(retrieveSchema(schema, definitions, formData)).eql({
+              type: "object",
+              properties: {
+                a: { type: "string" },
+                b: { type: "integer" },
+              },
+            });
           });
         });
       });
-      describe("true condition", () => {
-        it("should add additional properties in object", () => {
-          const schema = {
-            type: "object",
-            properties: {
-              a: { type: "string" },
-            },
-            dependencies: {
-              a: {
-                properties: {
-                  b: { type: "integer" },
+
+      describe("dynamic", () => {
+        describe("false condition", () => {
+          it("should not modify properties", () => {
+            const schema = {
+              type: "object",
+              properties: {
+                a: { type: "string" },
+              },
+              dependencies: {
+                a: {
+                  oneOf: [
+                    {
+                      properties: {
+                        a: { enum: ["int"] },
+                        b: { type: "integer" },
+                      },
+                    },
+                    {
+                      properties: {
+                        a: { enum: ["bool"] },
+                        b: { type: "boolean" },
+                      },
+                    },
+                  ],
                 },
               },
-            },
-          };
-          const definitions = {};
-          const formData = { a: "1" };
-          expect(retrieveSchema(schema, definitions, formData)).eql({
-            type: "object",
-            properties: {
-              a: { type: "string" },
-              b: { type: "integer" },
-            },
+            };
+            const definitions = {};
+            const formData = {};
+            expect(retrieveSchema(schema, definitions, formData)).eql({
+              type: "object",
+              properties: {
+                a: { type: "string" },
+              },
+            });
+          });
+        });
+
+        describe("true condition", () => {
+          it("should add 'first' properties given 'first' data", () => {
+            const schema = {
+              type: "object",
+              properties: {
+                a: { type: "string", enum: ["int", "bool"] },
+              },
+              dependencies: {
+                a: {
+                  oneOf: [
+                    {
+                      properties: {
+                        a: { enum: ["int"] },
+                        b: { type: "integer" },
+                      },
+                    },
+                    {
+                      properties: {
+                        a: { enum: ["bool"] },
+                        b: { type: "boolean" },
+                      },
+                    },
+                  ],
+                },
+              },
+            };
+            const definitions = {};
+            const formData = { a: "int" };
+            expect(retrieveSchema(schema, definitions, formData)).eql({
+              type: "object",
+              properties: {
+                a: { type: "string", enum: ["int", "bool"] },
+                b: { type: "integer" },
+              },
+            });
+          });
+
+          it("should add 'second' properties given 'second' data", () => {
+            const schema = {
+              type: "object",
+              properties: {
+                a: { type: "string", enum: ["int", "bool"] },
+              },
+              dependencies: {
+                a: {
+                  oneOf: [
+                    {
+                      properties: {
+                        a: { enum: ["int"] },
+                        b: { type: "integer" },
+                      },
+                    },
+                    {
+                      properties: {
+                        a: { enum: ["bool"] },
+                        b: { type: "boolean" },
+                      },
+                    },
+                  ],
+                },
+              },
+            };
+            const definitions = {};
+            const formData = { a: "bool" };
+            expect(retrieveSchema(schema, definitions, formData)).eql({
+              type: "object",
+              properties: {
+                a: { type: "string", enum: ["int", "bool"] },
+                b: { type: "boolean" },
+              },
+            });
           });
         });
       });

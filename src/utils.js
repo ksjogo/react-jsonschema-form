@@ -442,9 +442,15 @@ function resolvePropertyDependency(schema, properties) {
 }
 
 function resolveSchemaDependency(schema, definitions, formData, key, value) {
-  schema = resolveConditionalSchema(schema, definitions, formData, value);
-  if (Array.isArray(value.oneOf)) {
-    schema = resolveDynamicSchema(schema, definitions, formData, key, value);
+  let { oneOf, ...resolvedValue } = value;
+  schema = resolveConditionalSchema(
+    schema,
+    definitions,
+    formData,
+    resolvedValue
+  );
+  if (Array.isArray(oneOf)) {
+    schema = resolveDynamicSchema(schema, definitions, formData, key, oneOf);
   }
   return schema;
 }
@@ -455,8 +461,8 @@ function resolveConditionalSchema(schema, definitions, formData, value) {
   );
 }
 
-function resolveDynamicSchema(schema, definitions, formData, key, value) {
-  for (const subschema of value.oneOf) {
+function resolveDynamicSchema(schema, definitions, formData, key, oneOf) {
+  for (const subschema of oneOf) {
     if (!subschema.properties) {
       continue;
     }
