@@ -393,69 +393,97 @@ export function retrieveSchema(schema, definitions = {}, formData = {}) {
       formData
     );
   } else if (schema.hasOwnProperty("dependencies")) {
-    // Drop the dependencies from the source schema.
-    let { dependencies, ...localSchema } = schema;
-    // Process dependencies updating the local schema properties as appropriate.
-    for (const key of Object.keys(dependencies)) {
-      // Skip this dependency if its trigger property is not present.
-      if (!formData[key]) {
-        // fixme: a falsey check may not be appropriate here, I'm not sure
-        continue;
-      }
-      const value = dependencies[key];
-      if (Array.isArray(value)) {
-        for (const property of value) {
-          if (!Array.isArray(localSchema.required)) {
-            localSchema.required = [];
-          }
-          if (localSchema.required.includes(property)) {
-            continue;
-          }
-          localSchema.required = localSchema.required.concat(property);
-        }
-      } else if (isObject(value)) {
-        localSchema = retrieveSchema(
-          mergeObjects(
-            localSchema,
-            retrieveSchema(value, definitions, formData),
-            true
-          )
-        );
-        if (Array.isArray(value.oneOf)) {
-          for (const subschema of value.oneOf) {
-            if (!subschema.properties) {
-              continue;
-            }
-            const {
-              [key]: conditionProperty,
-              ...dependentProperties
-            } = subschema.properties;
-            if (conditionProperty) {
-              const conditionSchema = {
-                type: "object",
-                properties: {
-                  [key]: conditionProperty,
-                },
-              };
-              const { errors } = jsonValidate(formData, conditionSchema);
-              if (errors.length === 0) {
-                const dependentSchema = { ...subschema };
-                dependentSchema.properties = dependentProperties;
-                localSchema = mergeObjects(
-                  localSchema,
-                  retrieveSchema(dependentSchema, definitions, formData)
-                );
-              }
-            }
-          }
-        }
-      }
-    }
-    return retrieveSchema(localSchema, definitions, formData);
+    const resolvedSchema = resolveDependencies(schema, definitions, formData);
+    return retrieveSchema(resolvedSchema, definitions, formData);
   } else {
     // No $ref or dependencies attribute found, returning the original schema.
     return schema;
   }
+}
+
+function resolveDependencies(schema, definitions, formData) {
+  // Drop the dependencies from the source schema.
+  let { dependencies, ...resolvedSchema } = schema;
+  // Process dependencies updating the local schema properties as appropriate.
+  for (const key of Object.keys(dependencies)) {
+    // Skip this dependency if its trigger property is not present.
+    if (!formData[key]) {
+      // fixme: a falsey check may not be appropriate here, I'm not sure
+      continue;
+    }
+    const value = dependencies[key];
+    if (Array.isArray(value)) {
+      resolvedSchema = resolvePropertyDependency(resolvedSchema, value);
+    } else if (isObject(value)) {
+      resolvedSchema = resolveSchemaDependency(
+        resolvedSchema,
+        definitions,
+        formData,
+        key,
+        value
+      );
+    }
+  }
+  return resolvedSchema;
+}
+
+function resolvePropertyDependency(schema, properties) {
+  if (!properties) {
+    return schema;
+  }
+  schema = { ...schema };
+  schema.required = Array.isArray(schema.required) ? [...schema.required] : [];
+  for (const property of properties) {
+    if (schema.required.includes(property)) {
+      continue;
+    }
+    schema.required.push(property);
+  }
+  return schema;
+}
+
+function resolveSchemaDependency(schema, definitions, formData, key, value) {
+  schema = resolveConditionalSchema(schema, definitions, formData, value);
+  if (Array.isArray(value.oneOf)) {
+    schema = resolveDynamicSchema(schema, definitions, formData, key, value);
+  }
+  return schema;
+}
+
+function resolveConditionalSchema(schema, definitions, formData, value) {
+  return retrieveSchema(
+    mergeObjects(schema, retrieveSchema(value, definitions, formData), true)
+  );
+}
+
+function resolveDynamicSchema(schema, definitions, formData, key, value) {
+  for (const subschema of value.oneOf) {
+    if (!subschema.properties) {
+      continue;
+    }
+    const {
+      [key]: conditionProperty,
+      ...dependentProperties
+    } = subschema.properties;
+    if (conditionProperty) {
+      const conditionSchema = {
+        type: "object",
+        properties: {
+          [key]: conditionProperty,
+        },
+      };
+      const { errors } = jsonValidate(formData, conditionSchema);
+      if (errors.length === 0) {
+        const dependentSchema = { ...subschema };
+        dependentSchema.properties = dependentProperties;
+        schema = mergeObjects(
+          schema,
+          retrieveSchema(dependentSchema, definitions, formData)
+        );
+      }
+    }
+  }
+  return schema;
 }
 
 function isArguments(object) {
